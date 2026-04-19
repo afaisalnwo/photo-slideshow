@@ -2,86 +2,118 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Fullscreen Slideshow</title>
+<title>Slideshow Pro</title>
 
 <style>
 body {
   margin: 0;
-  background: black;
-  color: white;
   font-family: Arial;
-  text-align: center;
+  background: #0b0f19;
+  color: white;
+  overflow: hidden;
 }
 
-#topbar {
+/* Top control bar */
+#controls {
   position: fixed;
   top: 10px;
-  width: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  padding: 10px 15px;
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
   z-index: 10;
 }
 
-input, button {
-  padding: 10px;
-  margin: 5px;
+input, button, select {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
 }
 
+/* Slideshow container */
 #slideshow {
   width: 100vw;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+/* Image base style */
+#slideshow img {
+  max-width: 95%;
+  max-height: 95%;
+  position: absolute;
+  opacity: 0;
+  transition: all 0.8s ease;
 }
 
-/* Frame styles */
-.frame-classic img {
-  border: 15px solid brown;
+/* Transitions */
+.fade {
+  opacity: 1 !important;
 }
 
-.frame-polaroid img {
-  background: white;
-  padding: 10px 10px 40px;
+.zoom {
+  transform: scale(1.1);
+  opacity: 1 !important;
 }
 
-.frame-modern img {
-  border-radius: 20px;
-  box-shadow: 0 0 25px rgba(255,255,255,0.5);
+.slide-left {
+  transform: translateX(0);
+  opacity: 1 !important;
+}
+
+/* default hidden state */
+.hidden {
+  opacity: 0;
+  transform: scale(0.95);
 }
 </style>
 </head>
 
 <body>
 
-<div id="topbar">
-  <input id="folderPath" placeholder="/photo-slideshow">
-  
-  <select id="frame">
-    <option value="">No Frame</option>
-    <option value="frame-classic">Classic</option>
-    <option value="frame-polaroid">Polaroid</option>
-    <option value="frame-modern">Modern</option>
+<div id="controls">
+  <input id="folderPath" placeholder="/slideshow-photos">
+
+  <select id="duration">
+    <option value="2000">2 sec</option>
+    <option value="3000" selected>3 sec</option>
+    <option value="5000">5 sec</option>
+    <option value="8000">8 sec</option>
   </select>
 
-  <button onclick="loadImages()">Start Slideshow</button>
+  <button onclick="load()">Start</button>
   <button onclick="toggleFullscreen()">Fullscreen</button>
 </div>
 
-<div id="slideshow">
-  <p>Enter folder and start</p>
-</div>
+<div id="slideshow"></div>
 
 <script>
 let images = [];
 let index = 0;
-let interval;
+let timer;
 
-async function loadImages() {
+// Preload images
+function preload(urls) {
+  urls.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+}
+
+// Random transition generator
+function randomClass() {
+  const effects = ["fade", "zoom", "slide-left"];
+  return effects[Math.floor(Math.random() * effects.length)];
+}
+
+async function load() {
   const path = document.getElementById("folderPath").value;
 
   const res = await fetch(`/api/dropbox?path=${encodeURIComponent(path)}`);
@@ -92,17 +124,24 @@ async function loadImages() {
     return;
   }
 
+  preload(images);
   index = 0;
   show();
-  startAuto();
+  start();
 }
 
 function show() {
-  const frame = document.getElementById("frame").value;
-  const div = document.getElementById("slideshow");
+  const container = document.getElementById("slideshow");
 
-  div.className = frame;
-  div.innerHTML = `<img src="${images[index]}">`;
+  const effect = randomClass();
+
+  container.innerHTML = `
+    <img src="${images[index]}" class="hidden ${effect}">
+  `;
+
+  setTimeout(() => {
+    document.querySelector("img").classList.remove("hidden");
+  }, 50);
 }
 
 function next() {
@@ -110,17 +149,15 @@ function next() {
   show();
 }
 
-function prev() {
-  index = (index - 1 + images.length) % images.length;
-  show();
+function start() {
+  clearInterval(timer);
+
+  const duration = document.getElementById("duration").value;
+
+  timer = setInterval(next, Number(duration));
 }
 
-function startAuto() {
-  clearInterval(interval);
-  interval = setInterval(next, 3000);
-}
-
-// Fullscreen toggle
+// Fullscreen
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
@@ -130,9 +167,8 @@ function toggleFullscreen() {
 }
 
 // Keyboard controls
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", e => {
   if (e.key === "ArrowRight") next();
-  if (e.key === "ArrowLeft") prev();
   if (e.key === "f") toggleFullscreen();
 });
 </script>
