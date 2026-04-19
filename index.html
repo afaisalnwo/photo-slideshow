@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Dropbox Slideshow</title>
+
+<style>
+body {
+  text-align: center;
+  background: #111;
+  color: white;
+  font-family: Arial;
+}
+
+#slideshow {
+  width: 80%;
+  max-width: 600px;
+  height: 400px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frame-classic img { border: 10px solid brown; }
+.frame-polaroid img {
+  background: white;
+  padding: 10px 10px 40px;
+}
+.frame-modern img {
+  border-radius: 15px;
+  box-shadow: 0 0 20px white;
+}
+
+img {
+  max-width: 100%;
+  max-height: 100%;
+}
+</style>
+</head>
+
+<body>
+
+<h1>My Slideshow</h1>
+
+<input id="folderPath" placeholder="/slideshow-photos">
+<button onclick="loadFromDropbox()">Load</button>
+
+<br><br>
+
+<select id="frame">
+  <option value="frame-classic">Classic</option>
+  <option value="frame-polaroid">Polaroid</option>
+  <option value="frame-modern">Modern</option>
+</select>
+
+<div id="slideshow">No images</div>
+
+<br>
+
+<button onclick="prev()">Prev</button>
+<button onclick="next()">Next</button>
+
+<script>
+let images = [];
+let index = 0;
+let interval;
+
+async function loadFromDropbox() {
+  const path = document.getElementById("folderPath").value;
+
+  const res = await fetch(`/api/dropbox?path=${encodeURIComponent(path)}`);
+  images = await res.json();
+
+  index = 0;
+
+  if (images.length > 0) {
+    show();
+    start();
+  }
+}
+
+function show() {
+  const frame = document.getElementById("frame").value;
+  const div = document.getElementById("slideshow");
+
+  div.className = frame;
+  div.innerHTML = `<img src="${images[index]}">`;
+}
+
+function next() {
+  index = (index + 1) % images.length;
+  show();
+}
+
+function prev() {
+  index = (index - 1 + images.length) % images.length;
+  show();
+}
+
+function start() {
+  clearInterval(interval);
+  interval = setInterval(next, 3000);
+}
+</script>
+
+</body>
+</html>
