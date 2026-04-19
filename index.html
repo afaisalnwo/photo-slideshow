@@ -13,12 +13,12 @@ body {
   color: white;
 }
 
-/* =======================
-   CONTROL BAR (MODERN UI)
-======================= */
+/* =========================
+   GLASS CONTROL BAR
+========================= */
 #controls {
   position: fixed;
-  bottom: 20px;
+  bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -26,11 +26,11 @@ body {
   padding: 12px 14px;
   border-radius: 14px;
 
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.08);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   z-index: 10;
 }
 
@@ -38,8 +38,8 @@ input, select, button {
   border: none;
   border-radius: 8px;
   padding: 8px 10px;
-  outline: none;
   font-size: 14px;
+  outline: none;
 }
 
 button {
@@ -53,17 +53,18 @@ button:hover {
   background: #1f55d6;
 }
 
-/* =======================
-   SLIDESHOW CONTAINER
-======================= */
+/* =========================
+   SLIDESHOW AREA
+========================= */
 #slideshow {
   width: 100vw;
   height: 100vh;
   position: relative;
   overflow: hidden;
+  background: black;
 }
 
-/* Base image */
+/* image base */
 .slide {
   position: absolute;
   width: 100%;
@@ -74,63 +75,78 @@ button:hover {
   transition: opacity 1.2s ease;
 }
 
-/* Active image */
+/* active */
 .show {
   opacity: 1;
 }
 
-/* =======================
+/* =========================
    KEN BURNS EFFECTS
-======================= */
-
-/* slow zoom + pan variations */
-@keyframes zoomPan1 {
-  0%   { transform: scale(1.05) translate(0, 0); }
-  100% { transform: scale(1.25) translate(-30px, -20px); }
+========================= */
+@keyframes kb1 {
+  0% { transform: scale(1.05) translate(0,0); }
+  100% { transform: scale(1.25) translate(-30px,-20px); }
+}
+@keyframes kb2 {
+  0% { transform: scale(1.1) translate(0,0); }
+  100% { transform: scale(1.3) translate(25px,-25px); }
+}
+@keyframes kb3 {
+  0% { transform: scale(1.05) translate(0,0); }
+  100% { transform: scale(1.28) translate(-20px,25px); }
+}
+@keyframes kb4 {
+  0% { transform: scale(1.08) translate(0,0); }
+  100% { transform: scale(1.35) translate(30px,20px); }
 }
 
-@keyframes zoomPan2 {
-  0%   { transform: scale(1.1) translate(0, 0); }
-  100% { transform: scale(1.3) translate(25px, -30px); }
-}
-
-@keyframes zoomPan3 {
-  0%   { transform: scale(1.05) translate(0, 0); }
-  100% { transform: scale(1.28) translate(-20px, 25px); }
-}
-
-@keyframes zoomPan4 {
-  0%   { transform: scale(1.1) translate(0, 0); }
-  100% { transform: scale(1.35) translate(30px, 20px); }
-}
-
-.kenburns1 { animation: zoomPan1 10s ease-in-out forwards; }
-.kenburns2 { animation: zoomPan2 10s ease-in-out forwards; }
-.kenburns3 { animation: zoomPan3 10s ease-in-out forwards; }
-.kenburns4 { animation: zoomPan4 10s ease-in-out forwards; }
-
+.ken1 { animation: kb1 10s ease-in-out forwards; }
+.ken2 { animation: kb2 10s ease-in-out forwards; }
+.ken3 { animation: kb3 10s ease-in-out forwards; }
+.ken4 { animation: kb4 10s ease-in-out forwards; }
 </style>
 </head>
 
 <body>
 
+<!-- =========================
+     CONTROLS
+========================= -->
 <div id="controls">
+
   <input id="folderPath" value="/photo-slideshow">
 
   <select id="duration">
+    <option value="2000">2s</option>
     <option value="3000" selected>3s</option>
     <option value="5000">5s</option>
     <option value="8000">8s</option>
-    <option value="10000">10s</option>
-    <option value="12000">12s</option>
-    <option value="15000">15s</option>
   </select>
+
+  <!-- 🎵 MUSIC -->
+  <select id="music">
+    <option value="">No Music</option>
+    <option value="https://cdn.pixabay.com/download/audio/2023/03/13/audio_5c3d1c1b3e.mp3?filename=ambient-piano-145677.mp3">
+      Ambient Piano
+    </option>
+    <option value="https://cdn.pixabay.com/download/audio/2022/10/25/audio_6c6b2d7f4d.mp3?filename=cinematic-mood-ambient-121577.mp3">
+      Cinematic Ambient
+    </option>
+    <option value="https://cdn.pixabay.com/download/audio/2023/01/18/audio_7c0b0c9f2d.mp3?filename=soft-cinematic-ambient-132199.mp3">
+      Soft Cinematic
+    </option>
+  </select>
+
+  <input id="volume" type="range" min="0" max="1" step="0.01" value="0.5">
 
   <button onclick="load()">Start</button>
   <button onclick="toggleFullscreen()">Fullscreen</button>
+  <button onclick="toggleMusic()">Music</button>
   <button onclick="tvMode()">TV Mode</button>
+
 </div>
 
+<!-- SLIDES -->
 <div id="slideshow"></div>
 
 <script>
@@ -138,16 +154,58 @@ let images = [];
 let index = 0;
 let timer;
 
-function randomKenBurns() {
-  const effects = ["kenburns1", "kenburns2", "kenburns3", "kenburns4"];
-  return effects[Math.floor(Math.random() * effects.length)];
+/* =========================
+   MUSIC ENGINE
+========================= */
+let audio = new Audio();
+audio.loop = true;
+audio.volume = 0.5;
+let musicPlaying = false;
+
+function loadMusic() {
+  const url = document.getElementById("music").value;
+  if (!url) {
+    audio.pause();
+    return;
+  }
+  audio.src = url;
+  audio.load();
 }
 
+function toggleMusic() {
+  const url = document.getElementById("music").value;
+  if (!url) return;
+
+  loadMusic();
+
+  if (!musicPlaying) {
+    audio.play().catch(()=>{});
+    musicPlaying = true;
+  } else {
+    audio.pause();
+    musicPlaying = false;
+  }
+}
+
+document.getElementById("volume").addEventListener("input", e => {
+  audio.volume = e.target.value;
+});
+
+document.getElementById("music").addEventListener("change", loadMusic);
+
+/* =========================
+   SLIDESHOW LOGIC
+========================= */
 function preload(urls) {
   urls.forEach(src => {
     const img = new Image();
     img.src = src;
   });
+}
+
+function randomKen() {
+  const arr = ["ken1","ken2","ken3","ken4"];
+  return arr[Math.floor(Math.random()*arr.length)];
 }
 
 async function load() {
@@ -163,6 +221,14 @@ async function load() {
 
   preload(images);
 
+  // auto start music
+  const musicUrl = document.getElementById("music").value;
+  if (musicUrl) {
+    audio.src = musicUrl;
+    audio.play().catch(()=>{});
+    musicPlaying = true;
+  }
+
   index = 0;
   show();
   start();
@@ -171,21 +237,14 @@ async function load() {
 function show() {
   const container = document.getElementById("slideshow");
 
-  const src = images[index];
-  const ken = randomKenBurns();
-
   const img = document.createElement("img");
-  img.src = src;
-  img.className = `slide ${ken}`;
+  img.src = images[index];
+  img.className = `slide ${randomKen()}`;
 
   container.appendChild(img);
 
-  // trigger fade-in
-  setTimeout(() => {
-    img.classList.add("show");
-  }, 50);
+  setTimeout(() => img.classList.add("show"), 50);
 
-  // cleanup old slides
   if (container.children.length > 2) {
     container.removeChild(container.firstChild);
   }
@@ -199,10 +258,13 @@ function next() {
 function start() {
   clearInterval(timer);
 
-  const duration = Number(document.getElementById("duration").value);
-  timer = setInterval(next, duration);
+  const d = Number(document.getElementById("duration").value);
+  timer = setInterval(next, d);
 }
 
+/* =========================
+   FULLSCREEN + TV MODE
+========================= */
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
@@ -211,14 +273,15 @@ function toggleFullscreen() {
   }
 }
 
-/* TV MODE */
 function tvMode() {
   toggleFullscreen();
   document.getElementById("controls").style.opacity = "0";
   document.getElementById("controls").style.pointerEvents = "none";
 }
 
-/* keyboard */
+/* =========================
+   KEYBOARD SHORTCUTS
+========================= */
 document.addEventListener("keydown", e => {
   if (e.key === "ArrowRight") next();
   if (e.key === "f") toggleFullscreen();
