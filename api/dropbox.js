@@ -20,31 +20,24 @@ export default async function handler(req, res) {
        file.name.toLowerCase().endsWith(".jpeg"))
     );
 
-const images = await Promise.all(
-  imageFiles.map(async (file) => {
-    const thumbRes = await fetch(
-      "https://api.dropboxapi.com/2/files/get_thumbnail",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.DROPBOX_ACCESS_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          path: file.path_lower,
-          format: "jpeg",
-          size: "w1280h960" // 👈 compression level
-        })
-      }
+    const images = await Promise.all(
+      imageFiles.map(async (file) => {
+        const linkRes = await fetch(
+          "https://api.dropboxapi.com/2/files/get_temporary_link",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.DROPBOX_ACCESS_TOKEN}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ path: file.path_lower })
+          }
+        );
+
+        const linkData = await linkRes.json();
+        return linkData.link;
+      })
     );
-
-    const blob = await thumbRes.arrayBuffer();
-
-    const base64 = Buffer.from(blob).toString("base64");
-
-    return `data:image/jpeg;base64,${base64};
-  })
-);
 
     res.status(200).json(images);
 
