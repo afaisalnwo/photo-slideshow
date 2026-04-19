@@ -1,175 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Slideshow Pro</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Optimized Smart Slideshow</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #0b0f19;
-  color: white;
-  overflow: hidden;
-}
+    body {
+        margin: 0;
+        background: #000;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+        color: white;
+    }
 
-/* Top control bar */
-#controls {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
-  padding: 10px 15px;
-  border-radius: 12px;
-  display: flex;
-  gap: 10px;
-  z-index: 10;
-}
+    #viewer {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        background: black;
+    }
 
-input, button, select {
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-}
+    img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        position: absolute;
+        opacity: 0;
+        transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out;
+        transform: scale(1);
+    }
 
-/* Slideshow container */
-#slideshow {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
+    .active {
+        opacity: 1;
+        transform: scale(1);
+    }
 
-/* Image base style */
-#slideshow img {
-  max-width: 95%;
-  max-height: 95%;
-  position: absolute;
-  opacity: 0;
-  transition: all 0.8s ease;
-}
+    .zoom {
+        transform: scale(1.05);
+    }
 
-/* Transitions */
-.fade {
-  opacity: 1 !important;
-}
+    #controls {
+        position: fixed;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(20,20,20,0.7);
+        padding: 10px 14px;
+        border-radius: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        backdrop-filter: blur(10px);
+    }
 
-.zoom {
-  transform: scale(1.1);
-  opacity: 1 !important;
-}
+    input, button, select {
+        padding: 6px;
+        border-radius: 6px;
+        border: none;
+    }
 
-.slide-left {
-  transform: translateX(0);
-  opacity: 1 !important;
-}
+    button {
+        cursor: pointer;
+    }
 
-/* default hidden state */
-.hidden {
-  opacity: 0;
-  transform: scale(0.95);
-}
+    #tvModeBtn {
+        background: #ff3b3b;
+        color: white;
+    }
+
+    #controls.hidden {
+        display: none;
+    }
 </style>
 </head>
 
 <body>
 
+<div id="viewer"></div>
+
 <div id="controls">
-  <input id="folderPath" value="/photo-slideshow" placeholder="/photo-slideshow">
+    <input type="text" id="folderPath" value="/photo-slideshow" />
 
-  <select id="duration">
-    <option value="2000">2 sec</option>
-    <option value="3000" selected>3 sec</option>
-    <option value="5000">5 sec</option>
-    <option value="8000">8 sec</option>
-  </select>
+    <label>Speed</label>
+    <select id="duration">
+        <option value="3000">3 sec</option>
+        <option value="4000">4 sec</option>
+        <option value="5000">5 sec</option>
+        <option value="7000">7 sec</option>
+        <option value="10000">10 sec</option>
+        <option value="15000">15 sec</option>
+        <option value="20000">20 sec</option>
+    </select>
 
-  <button onclick="load()">Start</button>
-  <button onclick="toggleFullscreen()">Fullscreen</button>
+    <button onclick="startSlideshow()">Start</button>
+    <button onclick="toggleTV()" id="tvModeBtn">TV Mode</button>
 </div>
-
-<div id="slideshow"></div>
 
 <script>
 let images = [];
-let index = 0;
+let cache = {};
+let currentIndex = 0;
 let timer;
 
-// Preload images
-function preload(urls) {
-  urls.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
+let preloadAhead = 2;
+const MAX_CACHE = 6;
+
+const viewer = document.getElementById("viewer");
+let imgEl = null;
+
+async function loadImages(folder) {
+    try {
+        const res = await fetch(folder + "/index.json");
+        images = await res.json();
+        images.sort();
+    } catch (e) {
+        console.error("Failed to load images", e);
+    }
 }
 
-// Random transition generator
-function randomClass() {
-  const effects = ["fade", "zoom", "slide-left"];
-  return effects[Math.floor(Math.random() * effects.length)];
+function preloadImage(i) {
+    if (!images.length) return;
+
+    i = i % images.length;
+
+    if (!cache[i]) {
+        const img = new Image();
+        img.decoding = "async";
+        img.loading = "eager";
+        img.src = images[i];
+        cache[i] = img;
+    }
+
+    const keys = Object.keys(cache);
+    if (keys.length > MAX_CACHE) {
+        delete cache[keys[0]];
+    }
 }
 
-async function load() {
-  const path = document.getElementById("folderPath").value;
+function renderImage(index) {
+    if (!imgEl) {
+        imgEl = document.createElement("img");
+        viewer.appendChild(imgEl);
+    }
 
-  const res = await fetch(`/api/dropbox?path=${encodeURIComponent(path)}`);
-  images = await res.json();
+    imgEl.classList.remove("active", "zoom");
+    void imgEl.offsetWidth;
 
-  if (!images.length) {
-    alert("No images found");
-    return;
-  }
+    const src = cache[index]?.src || images[index];
+    imgEl.src = src;
 
-  preload(images);
-  index = 0;
-  show();
-  start();
+    imgEl.onload = () => {
+        imgEl.classList.add("active");
+        if (Math.random() > 0.5) imgEl.classList.add("zoom");
+    };
+
+    for (let i = 1; i <= preloadAhead; i++) {
+        preloadImage(index + i);
+    }
 }
 
-function show() {
-  const container = document.getElementById("slideshow");
-
-  const effect = randomClass();
-
-  container.innerHTML = `
-    <img src="${images[index]}" class="hidden ${effect}">
-  `;
-
-  setTimeout(() => {
-    document.querySelector("img").classList.remove("hidden");
-  }, 50);
+function nextImage() {
+    currentIndex = (currentIndex + 1) % images.length;
+    renderImage(currentIndex);
 }
 
-function next() {
-  index = (index + 1) % images.length;
-  show();
+async function startSlideshow() {
+    const folder = document.getElementById("folderPath").value;
+    const duration = parseInt(document.getElementById("duration").value);
+
+    await loadImages(folder);
+
+    currentIndex = 0;
+    renderImage(currentIndex);
+
+    clearInterval(timer);
+    timer = setInterval(nextImage, duration);
 }
 
-function start() {
-  clearInterval(timer);
+function toggleTV() {
+    const controls = document.getElementById("controls");
 
-  const duration = document.getElementById("duration").value;
-
-  timer = setInterval(next, Number(duration));
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+        controls.classList.remove("hidden");
+    } else {
+        document.documentElement.requestFullscreen();
+        controls.classList.add("hidden");
+    }
 }
 
-// Fullscreen
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-  } else {
-    document.exitFullscreen();
-  }
-}
-
-// Keyboard controls
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowRight") next();
-  if (e.key === "f") toggleFullscreen();
+document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") nextImage();
+    if (e.key === "Escape") toggleTV();
 });
 </script>
 
