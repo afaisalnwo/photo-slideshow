@@ -20,7 +20,7 @@ export default async function handler(req, res) {
        file.name.toLowerCase().endsWith(".jpeg"))
     );
 
-  const images = await Promise.all(
+const images = await Promise.all(
   imageFiles.map(async (file) => {
     const thumbRes = await fetch(
       "https://api.dropboxapi.com/2/files/get_thumbnail",
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     const base64 = Buffer.from(blob).toString("base64");
 
-    return `data:image/jpeg;base64,${base64}`;
+    return `data:image/jpeg;base64,${base64};
   })
 );
 
