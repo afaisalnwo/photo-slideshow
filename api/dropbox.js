@@ -15,9 +15,9 @@ export default async function handler(req, res) {
 
     const imageFiles = listData.entries.filter(file =>
       file[".tag"] === "file" &&
-      (file.name.endsWith(".jpg") ||
-       file.name.endsWith(".png") ||
-       file.name.endsWith(".jpeg"))
+      (file.name.toLowerCase().endsWith(".jpg") ||
+       file.name.toLowerCase().endsWith(".png") ||
+       file.name.toLowerCase().endsWith(".jpeg"))
     );
 
     const images = await Promise.all(
